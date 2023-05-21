@@ -23,9 +23,18 @@ status_not_found = 0
 status_404 = 0
 
 def open_file():
+    global status_ok
+    global status_part_ok
+    global status_not_found
+    global status_404
     global FILE
+    status_ok = 0
+    status_part_ok = 0
+    status_not_found = 0
+    status_404 = 0
     with open(filedialog.askopenfilename(), encoding="UTF-8") as f:
         FILE =  f.read()
+        message.config(text=f"Загружен файл\n{f.name.split('/')[-1]}")
     
 
 def project_name_shorter(project):
@@ -40,6 +49,8 @@ def url_checker(media, link, project_name, short_project_name):
     global status_part_ok
     global status_not_found
     global status_404
+    
+    
     
     status = ""
     
@@ -77,8 +88,6 @@ def url_checker(media, link, project_name, short_project_name):
         status_not_found += 1
         status = '<td style="color:white; background-color:#f26363;">Совпадений не найдено</td>'
         
-        with open (f"C:\\Work\\Python\\URL_Checker\\URL_Checker\\URL_Checker\\{project_name.lower()}-{media}.txt", "w") as f:
-            f.write(html_for_analyze)
         return row_prefix + status + row_postfix
     
 def main():
@@ -91,7 +100,7 @@ def main():
         sleep(3)
     
     try:
-        #with open(FILE, encoding="UTF-8") as f:
+        
         html = BeautifulSoup(FILE, "html.parser")
 
         project_name = html.find_all("div", class_ = "sub-navbar__name")[0].string.strip().replace("\"", "")
@@ -103,8 +112,7 @@ def main():
         last_table = html.find_all("div", class_ = "report-table")[-1]
         tr = last_table.tbody.find_all("tr")
         for i in range(len(tr)):
-            
-            if tr[i].find_all("td")[-1].string.count("https") > 0:
+            if tr[i].find_all("td")[-1].string[0:5].count("http") > 0:
                 links[str(i+1) + ". " + (tr[i].find_all("td")[1].string.strip())] = tr[i].find_all("td")[-1].string.strip()
 
     
@@ -216,7 +224,6 @@ def main():
         if not os.path.exists(results_folder):
             os.makedirs(results_folder)
             print(f"{results_folder} has been created")
-        #with open(os.path.join(results_folder, project_name + ".html"), "w") as f:
         with open(f"{results_folder}/{project_name}.html", "w") as f:
             f.write(css_style + html_prefix + table_row + html_postfix)
             message.config(text="Готово!")
@@ -228,7 +235,7 @@ def main():
 
 
 window.geometry("450x300+0+0")
-window.resizable(False, False)
+window.resizable(True, True)
 icon_path = os.path.join(os.path.dirname(__file__), "logo.ico")
 window.iconbitmap(default= icon_path)
 window.title("РМЦ Link Checker 1.0")
