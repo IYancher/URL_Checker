@@ -22,6 +22,15 @@ status_part_ok = 0
 status_not_found = 0
 status_404 = 0
 
+def message():
+    if FILE == "":
+        message.config(text="Файл не выбран")
+        return
+    else:
+        message.config(text="Не закрывайте окно до завершения работы")
+        sleep(3)
+        main()
+
 def open_file():
     global status_ok
     global status_part_ok
@@ -92,12 +101,7 @@ def url_checker(media, link, project_name, short_project_name):
     
 def main():
     
-    if FILE == "":
-        message.config(text="Файл не выбран")
-        return
-    else:
-        message.config(text="Не закрывайте окно до завершения работы")
-        sleep(3)
+    
     
     try:
         
@@ -201,8 +205,10 @@ def main():
 
         table_row = ""   
         for next_link in links.keys():
-            table_row += url_checker(next_link, links.get(next_link), project_name, project_name_shorter(project_name)) + "\n"
-        
+            try:
+                table_row += url_checker(next_link, links.get(next_link), project_name, project_name_shorter(project_name)) + "\n"
+            except Exception:
+                print(f"Не могу открыть адрес {links.get(next_link)}")
         html_postfix = f"""
     </tbody>
 </table>
@@ -212,6 +218,7 @@ def main():
         Всего источников: {len(links)}<br>
         Найдено полностью: {status_ok}<br>
         Найдено частично: {status_part_ok}<br>
+        Не найдено: {status_not_found}<br>
         Битых ссылок: {status_404}
     </div>
 </div>
@@ -224,9 +231,16 @@ def main():
         if not os.path.exists(results_folder):
             os.makedirs(results_folder)
             print(f"{results_folder} has been created")
-        with open(f"{results_folder}/{project_name}.html", "w") as f:
-            f.write(css_style + html_prefix + table_row + html_postfix)
-            message.config(text="Готово!")
+        
+        filepath = filedialog.asksaveasfilename(defaultextension="html", initialfile=project_name)
+        if filepath != "":
+            try:
+                with open(filepath, "w") as file:
+                    file.write(css_style + html_prefix + table_row + html_postfix)    
+            except:
+                message.config(text="Файл не сохранен!")
+            else:
+                message.config(text="Готово!")
 
     except Exception as error:
         message.config(text="Ошибка. Файл невозможно анализировать")  
@@ -237,8 +251,11 @@ def main():
 window.geometry("450x300+0+0")
 window.resizable(True, True)
 icon_path = os.path.join(os.path.dirname(__file__), "logo.ico")
-window.iconbitmap(default= icon_path)
-window.title("РМЦ Link Checker 1.0")
+try:
+    window.iconbitmap(default= icon_path)
+except Exception as error:
+    print(error)
+window.title("РМЦ Link Checker 1.0.2")
 
 top_frame = Frame()
 top_frame.pack(padx=10, pady=50)
@@ -254,7 +271,7 @@ label.pack(padx=10, side=LEFT)
 file_choise = ttk.Button(top_frame, text="Обзор", command=open_file, padding=5)
 file_choise.pack(padx=10, side=LEFT)
 
-analyze = ttk.Button(middle_frame, text="Начать анализ", command=main, padding=5)
+analyze = ttk.Button(middle_frame, text="Начать анализ", command=message, padding=5)
 analyze.pack(side=RIGHT)
 
 message = Label(bottom_frame, font=MESSAGE_FONT, justify=CENTER)
