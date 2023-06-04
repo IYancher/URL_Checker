@@ -14,13 +14,21 @@ FILE = ""
 LABEL_FONT = ("Calibri", 14)
 MESSAGE_FONT = ("Calibri", 12)
 
+SYMBOLS_TO_REMOVE = ["!", "?", "@", "#", "$", "%", "&", "*", "(", ")", "-", "—", "+", "_", "/", "<", ">", "\"", "\\", "'", "«", "»", "~", ",", ".", "&quot;"]
 
 HEADERS = {'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36'}
 
 status_ok = 0
 status_part_ok = 0
 status_not_found = 0
+status_part_possible = 0
 status_404 = 0
+
+def symbols_remove(text):
+    for sym in SYMBOLS_TO_REMOVE:
+        text = text.replace(sym, " ")
+        
+    return " ".join(text.split()).lower()
 
 def message():
     if FILE == "":
@@ -35,11 +43,13 @@ def open_file():
     global status_ok
     global status_part_ok
     global status_not_found
+    global status_part_possible
     global status_404
     global FILE
     status_ok = 0
     status_part_ok = 0
     status_not_found = 0
+    status_part_possible = 0
     status_404 = 0
     with open(filedialog.askopenfilename(), encoding="UTF-8") as f:
         FILE =  f.read()
@@ -50,14 +60,29 @@ def project_name_shorter(project):
     short_name = ""
     list_name = project.split(" ")
     for i in list_name:
-        short_name += i[0:-3].lower() + "\S+" + " "
+        if len(i) >5:
+            short_name += i[0:-3].lower() + "\S+" + " "
+        else:
+            short_name += i + " "
     return short_name.strip()
 
 def url_checker(media, link, project_name, short_project_name):
     global status_ok
     global status_part_ok
     global status_not_found
+    global status_part_possible
     global status_404
+    
+    
+    
+    def one_word_match(project_name, html_for_analyze):
+        for word in project_name.split():
+            if html_for_analyze.count(word.lower()) > 0:
+                return True
+        for word in project_name_shorter(project_name):
+            if html_for_analyze.count(word.lower()) > 0:
+                return True
+        return False
     
     
     
@@ -75,8 +100,8 @@ def url_checker(media, link, project_name, short_project_name):
         """    
     
     
-    html_for_analyze = response.text.lower().replace("\"", "")
-    html_for_analyze = html_for_analyze.replace("\\", "")    
+    html_for_analyze = symbols_remove(response.text)
+    
     
     if response.ok == False:
         status_404 += 1
@@ -93,6 +118,11 @@ def url_checker(media, link, project_name, short_project_name):
         status = '<td style="color:393939; background-color:#f6ec80;">Частичное совпадение</td>'
         return row_prefix + status + row_postfix
     
+    elif one_word_match(project_name, html_for_analyze):
+        status_part_possible += 1
+        status = '<td style="color:393939; background-color:#6193b6;">Возможна ошибка</td>'
+        return row_prefix + status + row_postfix
+    
     else:
         status_not_found += 1
         status = '<td style="color:white; background-color:#f26363;">Совпадений не найдено</td>'
@@ -107,8 +137,8 @@ def main():
         
         html = BeautifulSoup(FILE, "html.parser")
 
-        project_name = html.find_all("div", class_ = "sub-navbar__name")[0].string.strip().replace("\"", "")
-        short_project_name = project_name_shorter(project_name)
+        project_title = html.find_all("div", class_ = "sub-navbar__name")[0].string.strip()
+        project_name = symbols_remove(project_title)
 
 
         links = {}
@@ -191,7 +221,7 @@ def main():
             <span class="logo"></span>
         </div>
         <div class="container">
-        <h2>{project_name}</h2>
+        <h2>{project_title}</h2>
         <table style="width: 100%;">
             <thead>
                 <tr>
@@ -207,8 +237,9 @@ def main():
         for next_link in links.keys():
             try:
                 table_row += url_checker(next_link, links.get(next_link), project_name, project_name_shorter(project_name)) + "\n"
-            except Exception:
+            except Exception as error:
                 print(f"Не могу открыть адрес {links.get(next_link)}")
+                #print(error)
         html_postfix = f"""
     </tbody>
 </table>
@@ -218,6 +249,7 @@ def main():
         Всего источников: {len(links)}<br>
         Найдено полностью: {status_ok}<br>
         Найдено частично: {status_part_ok}<br>
+        Возможна ошибка: {status_part_possible}<br>
         Не найдено: {status_not_found}<br>
         Битых ссылок: {status_404}
     </div>
@@ -232,7 +264,7 @@ def main():
             os.makedirs(results_folder)
             print(f"{results_folder} has been created")
         
-        filepath = filedialog.asksaveasfilename(defaultextension="html", initialfile=project_name)
+        filepath = filedialog.asksaveasfilename(defaultextension="html", initialfile=symbols_remove(project_name))
         if filepath != "":
             try:
                 with open(filepath, "w") as file:
@@ -255,7 +287,7 @@ try:
     window.iconbitmap(default= icon_path)
 except Exception as error:
     print(error)
-window.title("РМЦ Link Checker 1.0.2")
+window.title("РМЦ Link Checker 1.0.4")
 
 top_frame = Frame()
 top_frame.pack(padx=10, pady=50)
